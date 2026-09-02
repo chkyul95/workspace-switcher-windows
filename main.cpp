@@ -239,6 +239,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				} else {
 					RestoreSystemAnimations();
 				}
+			} else if (id == IDM_TRAY_RESTORE) {
+				RestoreWindowFromTray(hwnd);
+			} else if (id == IDM_TRAY_EXIT) {
+				DestroyWindow(hwnd);
 			}
 			return 0;
 		}
