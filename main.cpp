@@ -66,6 +66,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
 				20, 20, 360, 24, hwnd, (HMENU)IDC_CHK_ANIMATION, NULL, NULL
 			);
+			if (!hCheck) return -1;
 			SendMessageW(hCheck, WM_SETFONT, (WPARAM)hFont, TRUE);
 			CheckDlgButton(hwnd, IDC_CHK_ANIMATION, BST_CHECKED);
 			
@@ -74,12 +75,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				WS_VISIBLE | WS_CHILD | SS_LEFT,
 				20, 60, 280, 50, hwnd, NULL, NULL, NULL
 			);
+			if (!hStatic) return -1;
 			SendMessageW(hStatic, WM_SETFONT, (WPARAM)hFont, TRUE);
 			
 			SetSystemAnimations(false);
 			
-			if (!RegisterHotKey(hwnd, 1, MOD_ALT | MOD_NOREPEAT, '1') || !RegisterHotKey(hwnd, 2, MOD_ALT | MOD_NOREPEAT, '2')) {
-				MessageBoxW(hwnd, L"Failed to register hotkey!", L"Error", MB_ICONERROR);
+			if (!RegisterHotKey(hwnd, 1, MOD_ALT | MOD_NOREPEAT, '1')) {
+				MessageBoxW(hwnd, L"Failed to register Alt+1 hotkey!", L"Error", MB_ICONERROR);
+				return -1;
+			}
+			if (!RegisterHotKey(hwnd, 2, MOD_ALT | MOD_NOREPEAT, '2')) {
+				MessageBoxW(hwnd, L"Failed to register Alt+2 hotkey!", L"Error", MB_ICONERROR);
+				UnregisterHotKey(hwnd, 1);
+				return -1;
 			}
 			
 			return 0;
@@ -116,7 +124,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
 	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	
-	RegisterClassW(&wc);
+	if (!RegisterClassW(&wc)) {
+		MessageBoxW(NULL, L"Failed to register window class!", L"Error", MB_ICONERROR);
+		return 1;
+	}
 	
 	HWND hwnd = CreateWindowExW(
 		WS_EX_DLGMODALFRAME,
@@ -126,11 +137,20 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
 		NULL, NULL, hInstance, NULL
 	);
 	
+	if (!hwnd) {
+		MessageBoxW(NULL, L"Failed to create window!", L"Error", MB_ICONERROR);
+		return 1;
+	}
+	
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);
 	
 	MSG msg = {};
-	while (GetMessageW(&msg, NULL, 0, 0)) {
+	BOOL bRet;
+	while ((bRet = GetMessageW(&msg, NULL, 0, 0)) != 0) {
+		if (bRet == -1) {
+			return 1;
+		}
 		TranslateMessage(&msg);
 		DispatchMessageW(&msg);
 	}
