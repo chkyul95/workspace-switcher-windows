@@ -2,6 +2,26 @@
 
 constexpr int IDC_CHK_ANIMATION = 2001;
 
+static BOOL g_origClientAreaAnim = TRUE;
+static ANIMATIONINFO g_origAnimInfo = {};
+
+void BackupSystemAnimations() {
+	SystemParametersInfoW(
+		SPI_GETCLIENTAREAANIMATION,
+		0,
+		&g_origClientAreaAnim,
+		0
+	);
+	
+	g_origAnimInfo.cbSize = sizeof(ANIMATIONINFO);
+	SystemParametersInfoW(
+		SPI_GETANIMATION,
+		sizeof(ANIMATIONINFO),
+		&g_origAnimInfo,
+		0
+	);
+}
+
 void SetSystemAnimations(bool enable) {
 	SystemParametersInfoW(
 		SPI_SETCLIENTAREAANIMATION,
@@ -18,6 +38,22 @@ void SetSystemAnimations(bool enable) {
 		SPI_SETANIMATION,
 		sizeof(ANIMATIONINFO),
 		&ai,
+		SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+	);
+}
+
+void RestoreSystemAnimations() {
+	SystemParametersInfoW(
+		SPI_SETCLIENTAREAANIMATION,
+		0,
+		(PVOID)(uintptr_t)g_origClientAreaAnim,
+		SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+	);
+	
+	SystemParametersInfoW(
+		SPI_SETANIMATION,
+		sizeof(ANIMATIONINFO),
+		&g_origAnimInfo,
 		SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
 	);
 }
@@ -59,6 +95,8 @@ void SwitchVirtualDesktop(bool goRight) {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
 		case WM_CREATE: {
+			BackupSystemAnimations();
+			
 			HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 			
 			HWND hCheck = CreateWindowW(
@@ -96,7 +134,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			int id = LOWORD(wParam);
 			if (id == IDC_CHK_ANIMATION) {
 				bool checked = (IsDlgButtonChecked(hwnd, IDC_CHK_ANIMATION) == BST_CHECKED);
-				SetSystemAnimations(!checked);
+				if (checked) {
+					SetSystemAnimations(false);
+				} else {
+					RestoreSystemAnimations();
+				}
 			}
 			return 0;
 		}
@@ -106,6 +148,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			return 0;
 		}
 		case WM_DESTROY:
+			RestoreSystemAnimations();
+			
 			UnregisterHotKey(hwnd, 1);
 			UnregisterHotKey(hwnd, 2);
 			PostQuitMessage(0);
