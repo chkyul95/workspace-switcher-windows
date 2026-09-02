@@ -148,6 +148,17 @@ void SwitchVirtualDesktop(bool goRight) {
 	SendInput(6, inputs, sizeof(INPUT));
 }
 
+DWORD WINAPI MonitorOffThread(LPVOID lpParam) {
+	HWND hwnd = (HWND)lpParam;
+	Sleep(100);
+	SendMessage(hwnd, WM_SYSCOMMAND, SC_MONITORPOWER, 2);
+	return 0;
+}
+
+void TurnOffMonitor(HWND hwnd) {
+	CloseHandle(CreateThread(NULL, 0, MonitorOffThread, hwnd, 0, NULL));
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (msg == g_wmTaskbarCreated) {
 		if (!IsWindowVisible(hwnd)) {
@@ -192,6 +203,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				UnregisterHotKey(hwnd, 1);
 				return -1;
 			}
+			if (!RegisterHotKey(hwnd, 3, MOD_ALT | MOD_NOREPEAT, VK_OEM_3)) {
+				MessageBoxW(hwnd, L"Failed to register Alt+` hotkey!", L"Error", MB_ICONERROR);
+				UnregisterHotKey(hwnd, 1);
+				UnregisterHotKey(hwnd, 2);
+				return -1;
+			}
 			
 			return 0;
 		}
@@ -228,6 +245,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		case WM_HOTKEY: {
 			if (wParam == 1) SwitchVirtualDesktop(false);
 			if (wParam == 2) SwitchVirtualDesktop(true);
+			if (wParam == 3) TurnOffMonitor(hwnd);
 			return 0;
 		}
 		case WM_DESTROY:
@@ -235,6 +253,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			
 			UnregisterHotKey(hwnd, 1);
 			UnregisterHotKey(hwnd, 2);
+			UnregisterHotKey(hwnd, 3);
 			PostQuitMessage(0);
 			return 0;
 	}
