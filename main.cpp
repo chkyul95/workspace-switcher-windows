@@ -2,6 +2,12 @@
 #include <iostream>
 
 void SwitchVirtualDesktop(bool goRight) {
+	INPUT releaseAlt = {};
+	releaseAlt.type = INPUT_KEYBOARD;
+	releaseAlt.ki.wVk = VK_MENU;
+	releaseAlt.ki.dwFlags = KEYEVENTF_KEYUP;
+	SendInput(1, &releaseAlt, sizeof(INPUT));
+	
 	INPUT inputs[6] = {};
 	WORD keyArrow = goRight ? VK_RIGHT : VK_LEFT;
 	
