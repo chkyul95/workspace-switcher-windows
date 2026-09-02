@@ -1,9 +1,16 @@
 #include <windows.h>
+#include <shellapi.h>
 
 constexpr int IDC_CHK_ANIMATION = 2001;
+constexpr UINT WM_TRAYICON       = WM_USER + 1;
+constexpr UINT IDM_TRAY_RESTORE  = 3001;
+constexpr UINT IDM_TRAY_EXIT     = 3002;
+constexpr UINT TRAY_ICON_UID     = 100;
 
 static BOOL g_origClientAreaAnim = TRUE;
 static ANIMATIONINFO g_origAnimInfo = {};
+static NOTIFYICONDATAW g_nid = {};
+static UINT g_wmTaskbarCreated = 0;
 
 void BackupSystemAnimations() {
 	SystemParametersInfoW(
@@ -58,6 +65,55 @@ void RestoreSystemAnimations() {
 	);
 }
 
+void AddTrayIcon(HWND hwnd) {
+	ZeroMemory(&g_nid, sizeof(NOTIFYICONDATAW));
+	g_nid.cbSize = sizeof(NOTIFYICONDATAW);
+	g_nid.hWnd = hwnd;
+	g_nid.uID = TRAY_ICON_UID;
+	g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+	g_nid.uCallbackMessage = WM_TRAYICON;
+	g_nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	lstrcpyW(g_nid.szTip, L"Stealth Desktop Switcher");
+	
+	Shell_NotifyIconW(NIM_ADD, &g_nid);
+}
+
+void RemoveTrayIcon() {
+	if (g_nid.cbSize != 0) {
+		Shell_NotifyIconW(NIM_DELETE, &g_nid);
+		g_nid.cbSize = 0;
+	}
+}
+
+void ShowTrayContextMenu(HWND hwnd) {
+	POINT pt;
+	GetCursorPos(&pt);
+	
+	HMENU hMenu = CreatePopupMenu();
+	if (hMenu) {
+		InsertMenuW(hMenu, -1, MF_BYPOSITION | MF_STRING, IDM_TRAY_RESTORE, L"Restore Window");
+		InsertMenuW(hMenu, -1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+		InsertMenuW(hMenu, -1, MF_BYPOSITION | MF_STRING, IDM_TRAY_EXIT, L"Exit");
+		
+		SetForegroundWindow(hwnd);
+		TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
+		PostMessageW(hwnd, WM_NULL, 0, 0);
+		
+		DestroyMenu(hMenu);
+	}
+}
+
+void RestoreWindowFromTray(HWND hwnd) {
+	ShowWindow(hwnd, SW_RESTORE);
+	SetForegroundWindow(hwnd);
+	RemoveTrayIcon();
+}
+
+void MinimizeWindowToTray(HWND hwnd) {
+	ShowWindow(hwnd, SW_HIDE);
+	AddTrayIcon(hwnd);
+}
+
 void SwitchVirtualDesktop(bool goRight) {
 	INPUT releaseAlt = {};
 	releaseAlt.type = INPUT_KEYBOARD;
@@ -93,9 +149,18 @@ void SwitchVirtualDesktop(bool goRight) {
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	if (msg == g_wmTaskbarCreated) {
+		if (!IsWindowVisible(hwnd)) {
+			AddTrayIcon(hwnd);
+		}
+		return 0;
+	}
+	
 	switch (msg) {
 		case WM_CREATE: {
 			BackupSystemAnimations();
+			
+			g_wmTaskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
 			
 			HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 			
@@ -130,6 +195,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			
 			return 0;
 		}
+		
+		case WM_SYSCOMMAND: {
+			if ((wParam & 0xFFF0) == SC_MINIMIZE) {
+				MinimizeWindowToTray(hwnd);
+				return 0;
+			}
+			break;
+		}
+		
+		case WM_TRAYICON: {
+			if (lParam == WM_RBUTTONUP) {
+				ShowTrayContextMenu(hwnd);
+			} else if (lParam == WM_LBUTTONUP || lParam == WM_LBUTTONDBLCLK) {
+				RestoreWindowFromTray(hwnd);
+			}
+			return 0;
+		}
+		
 		case WM_COMMAND: {
 			int id = LOWORD(wParam);
 			if (id == IDC_CHK_ANIMATION) {
