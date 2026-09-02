@@ -59,18 +59,22 @@ void SwitchVirtualDesktop(bool goRight) {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
 		case WM_CREATE: {
-			CreateWindowW(
+			HFONT hFont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+			
+			HWND hCheck = CreateWindowW(
 				L"BUTTON", L"Turn off screen switching animation (Recommended)",
 				WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
 				20, 20, 360, 24, hwnd, (HMENU)IDC_CHK_ANIMATION, NULL, NULL
 			);
+			SendMessageW(hCheck, WM_SETFONT, (WPARAM)hFont, TRUE);
 			CheckDlgButton(hwnd, IDC_CHK_ANIMATION, BST_CHECKED);
 			
-			CreateWindowW(
+			HWND hStatic = CreateWindowW(
 				L"STATIC", L"- Alt + 1: Previous desktop\n- Alt + 2: Next desktop",
 				WS_VISIBLE | WS_CHILD | SS_LEFT,
 				20, 60, 280, 50, hwnd, NULL, NULL, NULL
 			);
+			SendMessageW(hStatic, WM_SETFONT, (WPARAM)hFont, TRUE);
 			
 			SetSystemAnimations(false);
 			
