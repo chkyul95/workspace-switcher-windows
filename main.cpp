@@ -193,6 +193,17 @@ public:
 	}
 };
 
+HFONT CreateSystemFont() {
+	NONCLIENTMETRICSW ncm{};
+	ncm.cbSize = sizeof(NONCLIENTMETRICSW);
+	
+	if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICSW), &ncm, 0)) {
+		return CreateFontIndirectW(&ncm.lfMessageFont);
+	}
+	
+	return static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+}
+
 class MainWindow {
 public:
 	static constexpr int IDC_CHK_ANIMATION = 2001;
@@ -253,6 +264,7 @@ private:
 	HINSTANCE m_hInstance{ nullptr };
 	HWND m_hwnd{ nullptr };
 	UINT m_wmTaskbarCreated{ 0 };
+	HFONT m_hFont{ nullptr };
 	
 	SystemAnimationManager m_animManager;
 	HotkeyManager m_hotkeyManager;
@@ -310,6 +322,10 @@ private:
 				return OnHotkey(static_cast<int>(wParam));
 			
 			case WM_DESTROY:
+				if (m_hFont) {
+					DeleteObject(m_hFont);
+					m_hFont = nullptr;
+				}
 				PostQuitMessage(0);
 				return 0;
 		}
@@ -321,7 +337,7 @@ private:
 		m_trayIcon.Init(m_hwnd, TRAY_ICON_UID, WM_TRAYICON, L"Stealth Desktop Switcher");
 		m_hotkeyManager.SetWindow(m_hwnd);
 		
-		HFONT hFont = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+		m_hFont = CreateSystemFont();
 		
 		HWND hCheck = CreateWindowW(
 			L"BUTTON", L"Turn off screen switching animation (Recommended)",
@@ -329,7 +345,7 @@ private:
 			20, 20, 360, 24, m_hwnd, reinterpret_cast<HMENU>(IDC_CHK_ANIMATION), NULL, NULL
 		);
 		if (!hCheck) return -1;
-		SendMessageW(hCheck, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+		SendMessageW(hCheck, WM_SETFONT, reinterpret_cast<WPARAM>(m_hFont), TRUE);
 		CheckDlgButton(m_hwnd, IDC_CHK_ANIMATION, BST_CHECKED);
 		
 		HWND hStatic = CreateWindowW(
@@ -342,7 +358,7 @@ private:
 			20, 60, 360, 70, m_hwnd, NULL, NULL, NULL
 		);
 		if (!hStatic) return -1;
-		SendMessageW(hStatic, WM_SETFONT, reinterpret_cast<WPARAM>(hFont), TRUE);
+		SendMessageW(hStatic, WM_SETFONT, reinterpret_cast<WPARAM>(m_hFont), TRUE);
 		
 		m_animManager.SetEnabled(false);
 		
