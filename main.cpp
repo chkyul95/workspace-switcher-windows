@@ -7,6 +7,11 @@ constexpr UINT IDM_TRAY_RESTORE  = 3001;
 constexpr UINT IDM_TRAY_EXIT     = 3002;
 constexpr UINT TRAY_ICON_UID     = 100;
 
+constexpr int HOTKEY_DESKTOP_PREV = 1;
+constexpr int HOTKEY_DESKTOP_NEXT = 2;
+constexpr int HOTKEY_MONITOR_OFF = 3;
+constexpr int HOTKEY_TOGGLE_ALPHA = 4;
+
 static BOOL g_origClientAreaAnim = TRUE;
 static ANIMATIONINFO g_origAnimInfo = {};
 static NOTIFYICONDATAW g_nid = {};
@@ -218,27 +223,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			
 			SetSystemAnimations(false);
 			
-			if (!RegisterHotKey(hwnd, 1, MOD_ALT | MOD_NOREPEAT, '1')) {
+			if (!RegisterHotKey(hwnd, HOTKEY_DESKTOP_PREV, MOD_ALT | MOD_NOREPEAT, '1')) {
 				MessageBoxW(hwnd, L"Failed to register Alt+1 hotkey!", L"Error", MB_ICONERROR);
 				return -1;
 			}
-			if (!RegisterHotKey(hwnd, 2, MOD_ALT | MOD_NOREPEAT, '2')) {
+			if (!RegisterHotKey(hwnd, HOTKEY_DESKTOP_NEXT, MOD_ALT | MOD_NOREPEAT, '2')) {
 				MessageBoxW(hwnd, L"Failed to register Alt+2 hotkey!", L"Error", MB_ICONERROR);
-				UnregisterHotKey(hwnd, 1);
+				UnregisterHotKey(hwnd, HOTKEY_DESKTOP_PREV);
 				return -1;
 			}
-			if (!RegisterHotKey(hwnd, 3, MOD_ALT | MOD_NOREPEAT, VK_OEM_3)) {
+			if (!RegisterHotKey(hwnd, HOTKEY_MONITOR_OFF, MOD_ALT | MOD_NOREPEAT, VK_OEM_3)) {
 				MessageBoxW(hwnd, L"Failed to register Alt+` hotkey!", L"Error", MB_ICONERROR);
-				UnregisterHotKey(hwnd, 1);
-				UnregisterHotKey(hwnd, 2);
+				UnregisterHotKey(hwnd, HOTKEY_DESKTOP_PREV);
+				UnregisterHotKey(hwnd, HOTKEY_DESKTOP_NEXT);
 				return -1;
 			}
 			
-			if (!RegisterHotKey(hwnd, 4, MOD_ALT | MOD_NOREPEAT, 'Q')) {
+			if (!RegisterHotKey(hwnd, HOTKEY_TOGGLE_ALPHA, MOD_ALT | MOD_NOREPEAT, 'Q')) {
 				MessageBox(hwnd, L"Failed to register Alt+Q hotkey!", L"Error", MB_ICONERROR);
-				UnregisterHotKey(hwnd, 1);
-				UnregisterHotKey(hwnd, 2);
-				UnregisterHotKey(hwnd, 3);
+				UnregisterHotKey(hwnd, HOTKEY_DESKTOP_PREV);
+				UnregisterHotKey(hwnd, HOTKEY_DESKTOP_NEXT);
+				UnregisterHotKey(hwnd, HOTKEY_MONITOR_OFF);
 				return -1;
 			}
 			
@@ -279,19 +284,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			return 0;
 		}
 		case WM_HOTKEY: {
-			if (wParam == 1) SwitchVirtualDesktop(false);
-			if (wParam == 2) SwitchVirtualDesktop(true);
-			if (wParam == 3) TurnOffMonitor(hwnd);
-			if (wParam == 4) ToggleForegroundTransparency();
+			switch (wParam) {
+				case HOTKEY_DESKTOP_PREV: SwitchVirtualDesktop(false); break;
+				case HOTKEY_DESKTOP_NEXT: SwitchVirtualDesktop(true); break;
+				case HOTKEY_MONITOR_OFF: TurnOffMonitor(hwnd); break;
+				case HOTKEY_TOGGLE_ALPHA: ToggleForegroundTransparency(); break;
+			}
 			return 0;
 		}
 		case WM_DESTROY:
 			RestoreSystemAnimations();
 			
-			UnregisterHotKey(hwnd, 1);
-			UnregisterHotKey(hwnd, 2);
-			UnregisterHotKey(hwnd, 3);
-			UnregisterHotKey(hwnd, 4);
+			UnregisterHotKey(hwnd, HOTKEY_DESKTOP_PREV);
+			UnregisterHotKey(hwnd, HOTKEY_DESKTOP_NEXT);
+			UnregisterHotKey(hwnd, HOTKEY_MONITOR_OFF);
+			UnregisterHotKey(hwnd, HOTKEY_TOGGLE_ALPHA);
 			PostQuitMessage(0);
 			return 0;
 	}
