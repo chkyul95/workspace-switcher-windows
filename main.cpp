@@ -185,9 +185,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			CheckDlgButton(hwnd, IDC_CHK_ANIMATION, BST_CHECKED);
 			
 			HWND hStatic = CreateWindowW(
-				L"STATIC", L"- Alt + 1: Previous desktop\n- Alt + 2: Next desktop",
+				L"STATIC", L"- Alt + 1: Previous desktop\n- Alt + 2: Next desktop\n- Alt + `: Turn off monitor to sleep mode",
 				WS_VISIBLE | WS_CHILD | SS_LEFT,
-				20, 60, 280, 50, hwnd, NULL, NULL, NULL
+				20, 60, 360, 50, hwnd, NULL, NULL, NULL
 			);
 			if (!hStatic) return -1;
 			SendMessageW(hStatic, WM_SETFONT, (WPARAM)hFont, TRUE);
