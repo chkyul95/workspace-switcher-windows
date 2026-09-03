@@ -159,6 +159,26 @@ void TurnOffMonitor(HWND hwnd) {
 	CloseHandle(CreateThread(NULL, 0, MonitorOffThread, hwnd, 0, NULL));
 }
 
+void ToggleForegroundTransparency() {
+	HWND fgHwnd = GetForegroundWindow();
+	if (!fgHwnd || fgHwnd == GetDesktopWindow() || fgHwnd == GetShellWindow()) return;
+	
+	LONG_PTR exStyle = GetWindowLongPtrW(fgHwnd, GWL_EXSTYLE);
+	BYTE alpha = 255;
+	DWORD flags = 0;
+	
+	if ((exStyle & WS_EX_LAYERED) && GetLayeredWindowAttributes(fgHwnd, NULL, &alpha, &flags)) {
+		if (alpha < 255) {
+			SetLayeredWindowAttributes(fgHwnd, 0, 255, LWA_ALPHA);
+			SetWindowLongPtrW(fgHwnd, GWL_EXSTYLE, exStyle & ~WS_EX_LAYERED);
+			return;
+		}
+	}
+	
+	SetWindowLongPtrW(fgHwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED);
+	SetLayeredWindowAttributes(fgHwnd, 0, 50, LWA_ALPHA);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	if (msg == g_wmTaskbarCreated) {
 		if (!IsWindowVisible(hwnd)) {
@@ -185,9 +205,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			CheckDlgButton(hwnd, IDC_CHK_ANIMATION, BST_CHECKED);
 			
 			HWND hStatic = CreateWindowW(
-				L"STATIC", L"- Alt + 1: Previous desktop\n- Alt + 2: Next desktop\n- Alt + `: Turn off monitor to sleep mode",
+				L"STATIC",
+				L"- Alt + 1: Previous desktop\n"
+				L"- Alt + 2: Next desktop\n"
+				L"- Alt + `: Turn off monitor to sleep mode\n"
+				L"- Alt + Q: Toggle window transparency",
 				WS_VISIBLE | WS_CHILD | SS_LEFT,
-				20, 60, 360, 50, hwnd, NULL, NULL, NULL
+				20, 60, 360, 70, hwnd, NULL, NULL, NULL
 			);
 			if (!hStatic) return -1;
 			SendMessageW(hStatic, WM_SETFONT, (WPARAM)hFont, TRUE);
@@ -207,6 +231,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 				MessageBoxW(hwnd, L"Failed to register Alt+` hotkey!", L"Error", MB_ICONERROR);
 				UnregisterHotKey(hwnd, 1);
 				UnregisterHotKey(hwnd, 2);
+				return -1;
+			}
+			
+			if (!RegisterHotKey(hwnd, 4, MOD_ALT | MOD_NOREPEAT, 'Q')) {
+				MessageBox(hwnd, L"Failed to register Alt+Q hotkey!", L"Error", MB_ICONERROR);
+				UnregisterHotKey(hwnd, 1);
+				UnregisterHotKey(hwnd, 2);
+				UnregisterHotKey(hwnd, 3);
 				return -1;
 			}
 			
@@ -250,6 +282,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			if (wParam == 1) SwitchVirtualDesktop(false);
 			if (wParam == 2) SwitchVirtualDesktop(true);
 			if (wParam == 3) TurnOffMonitor(hwnd);
+			if (wParam == 4) ToggleForegroundTransparency();
 			return 0;
 		}
 		case WM_DESTROY:
@@ -258,6 +291,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 			UnregisterHotKey(hwnd, 1);
 			UnregisterHotKey(hwnd, 2);
 			UnregisterHotKey(hwnd, 3);
+			UnregisterHotKey(hwnd, 4);
 			PostQuitMessage(0);
 			return 0;
 	}
